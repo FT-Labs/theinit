@@ -1,0 +1,6 @@
+/scripts/local-bottom/cryptgnupg-sc "$@"
+[ -e /conf/param.conf ] && . /conf/param.conf
+/scripts/local-bottom/cryptopensc "$@"
+[ -e /conf/param.conf ] && . /conf/param.conf
+/scripts/local-bottom/cryptroot "$@"
+[ -e /conf/param.conf ] && . /conf/param.conf
