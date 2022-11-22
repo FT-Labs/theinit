@@ -9,21 +9,6 @@
 # iucode_tool v1.0 or later is required.
 #
 
-PREREQ=""
-IUCODE_CONFIG=/etc/default/intel-microcode
-
-prereqs()
-{
-   echo "$PREREQ"
-}
-
-case $1 in
-prereqs)
-   prereqs
-   exit 0
-   ;;
-esac
-
 . /usr/share/geninit.d/hook-functions
 
 verbose()

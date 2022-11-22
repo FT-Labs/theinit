@@ -6,22 +6,9 @@
 # Generates a copy of the minimal microcode for all AMD processors
 # and installs it to the early initramfs
 
-PREREQ=""
-AMD64UCODE_CONFIG=/etc/default/amd64-microcode
-
-prereqs()
-{
-   echo "$PREREQ"
-}
-
-case $1 in
-prereqs)
-   prereqs
-   exit 0
-   ;;
-esac
-
-. /usr/share/geninit.d/hook-functions
+#. /usr/share/geninit.d/hook-functions
+__TMPEARLYCPIO="$(mktemp "${TMPDIR:-/var/tmp}/mkinitramfs-FW_XXXXXX")" || exit 1
+. /home/rzero/.local/src/CORE/theinit/usr/share/geninit.d/hook-functions
 
 verbose()
 {
@@ -32,12 +19,7 @@ verbose()
 }
 
 AUCODE_FW_DIR=/lib/firmware/amd-ucode
-if [ "$MODULES" = "most" ]; then
-    AMD64UCODE_INITRAMFS=${AMD64UCODE_INITRAMFS:-early}
-else
-    AMD64UCODE_INITRAMFS=${AMD64UCODE_INITRAMFS:-auto}
-fi
-[ -r ${AMD64UCODE_CONFIG} ] && . ${AMD64UCODE_CONFIG}
+AMD64UCODE_INITRAMFS=${AMD64UCODE_INITRAMFS:-early}
 
 [ -z "${AMD64UCODE_INITRAMFS}" ] && AMD64UCODE_INITRAMFS=no
 
@@ -85,7 +67,6 @@ EFWD=$(mktemp -d "${TMPDIR:-/var/tmp}/mkinitramfs-EFW_XXXXXXXXXX") || {
 }
 
 EFWE="${EFWD}/early-initramfs.cpio"
-
 EFWCD="${EFWD}/d/kernel/x86/microcode"
 EFWF="${EFWCD}/AuthenticAMD.bin"
 
