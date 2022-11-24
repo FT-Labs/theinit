@@ -70,135 +70,6 @@ export forcefsck=n
 export fsckfix=
 . /scripts/functions
 
-# Parse command line options
-# shellcheck disable=SC2013
-for x in $(cat /proc/cmdline); do
-	case $x in
-	init=*)
-		init=${x#init=}
-		;;
-	root=*)
-		ROOT=${x#root=}
-		if [ -z "${BOOT}" ] && [ "$ROOT" = "/dev/nfs" ]; then
-			BOOT=nfs
-		fi
-		;;
-	rootflags=*)
-		ROOTFLAGS="-o ${x#rootflags=}"
-		;;
-	rootfstype=*)
-		ROOTFSTYPE="${x#rootfstype=}"
-		;;
-	rootdelay=*)
-		ROOTDELAY="${x#rootdelay=}"
-		case ${ROOTDELAY} in
-		*[![:digit:].]*)
-			ROOTDELAY=
-			;;
-		esac
-		;;
-	roottimeout=*)
-		ROOTDELAY="${x#roottimeout=}"
-		case ${ROOTDELAY} in
-		*[![:digit:].]*)
-			ROOTDELAY=
-			;;
-		esac
-		;;
-	loop=*)
-		# shellcheck disable=SC2034
-		LOOP="${x#loop=}"
-		;;
-	loopflags=*)
-		# shellcheck disable=SC2034
-		LOOPFLAGS="-o ${x#loopflags=}"
-		;;
-	loopfstype=*)
-		# shellcheck disable=SC2034
-		LOOPFSTYPE="${x#loopfstype=}"
-		;;
-	nfsroot=*)
-		# shellcheck disable=SC2034
-		NFSROOT="${x#nfsroot=}"
-		;;
-	initramfs.runsize=*)
-		RUNSIZE="${x#initramfs.runsize=}"
-		;;
-	ip=*)
-		IP="${x#ip=}"
-		;;
-	ip6=*)
-		IP6="${x#ip6=}"
-		;;
-	vlan=*)
-		VLAN="${x#vlan=}"
-		;;
-	boot=*)
-		BOOT=${x#boot=}
-		;;
-	ubi.mtd=*)
-		UBIMTD=${x#ubi.mtd=}
-		;;
-	resume=*)
-		RESUME="${x#resume=}"
-		case $RESUME in
-		UUID=*)
-			RESUME="/dev/disk/by-uuid/${RESUME#UUID=}"
-		esac
-		;;
-	resume_offset=*)
-		resume_offset="${x#resume_offset=}"
-		;;
-	noresume)
-		noresume=y
-		;;
-	drop_capabilities=*)
-		drop_caps="-d ${x#drop_capabilities=}"
-		;;
-	panic=*)
-		panic="${x#panic=}"
-		;;
-	ro)
-		readonly=y
-		;;
-	rw)
-		readonly=n
-		;;
-	debug=*)
-		debug=y
-		quiet=n
-		set -x
-		;;
-	break=*)
-		break=${x#break=}
-		;;
-	break)
-		break=premount
-		;;
-	blacklist=*)
-		blacklist=${x#blacklist=}
-		;;
-	BOOTIF=*)
-		BOOTIF=${x#BOOTIF=}
-		;;
-	hwaddr=*)
-		BOOTIF=${x#hwaddr=}
-		;;
-	fastboot|fsck.mode=skip)
-		fastboot=y
-		;;
-	forcefsck|fsck.mode=force)
-		forcefsck=y
-		;;
-	fsckfix|fsck.repair=yes)
-		fsckfix=y
-		;;
-	fsck.repair=no)
-		fsckfix=n
-		;;
-	esac
-done
-
 # Default to BOOT=local if no boot script defined.
 if [ -z "${BOOT}" ]; then
 	BOOT=local
@@ -265,43 +136,13 @@ run_scripts /scripts/init-bottom
 mount -n -o move /run ${rootmnt}/run
 maybe_break init
 
-# don't leak too much of env - some init(8) don't clear it
-# (keep init, rootmnt, drop_caps)
-unset debug
-unset MODPROBE_OPTIONS
-unset DPKG_ARCH
-unset ROOTFLAGS
-unset ROOTFSTYPE
-unset ROOTDELAY
-unset ROOT
-unset IP
-unset IP6
-unset VLAN
-unset BOOT
-unset BOOTIF
-unset DEVICE
-unset UBIMTD
-unset blacklist
-unset break
-unset noresume
-unset panic
-unset quiet
-unset readonly
-unset resume
-unset resume_offset
-unset noresume
-unset fastboot
-unset forcefsck
-unset fsckfix
-unset starttime
-
 # Move virtual filesystems over to the real filesystem
 mount -n -o move /sys ${rootmnt}/sys
 mount -n -o move /proc ${rootmnt}/proc
 
 # honor the old behavior of break=y as a synonym for break=premount
-# run_hookfunctions 'run_latehook' 'late hook' $LATEHOOKS
-# run_hookfunctions 'run_cleanuphook' 'cleanup hook' $CLEANUPHOOKS
+run_hookfunctions 'run_latehook' 'late hook' $LATEHOOKS
+run_hookfunctions 'run_cleanuphook' 'cleanup hook' $CLEANUPHOOKS
 
 exec env -i \
     "TERM=$TERM" \
