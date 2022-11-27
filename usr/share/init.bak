@@ -8,6 +8,7 @@
 [ -d /dev/pts ] || mkdir /dev/pts
 [ -d /run ] || mkdir -p /run/plymouth
 [ -d /run/plymouth ] || mkdir /run/plymouth
+[ -d /new_root ] || mkdir /new_root
 
 udevd_running=0
 mount_handler=default_mount_handler
@@ -34,6 +35,8 @@ run_hookfunctions 'run_earlyhook' 'early hook' $EARLYHOOKS
 
 if [ -n "$earlymodules$MODULES" ]; then
     modprobe -qab ${earlymodules//,/ } $MODULES
+    towrite=$(cat /config | sed 1d)
+    echo "$towrite" > /config
 fi
 
 run_hookfunctions 'run_hook' 'hook' $HOOKS
@@ -45,18 +48,31 @@ if [ "${break}" = "y" ] || [ "${break}" = "premount" ]; then
 fi
 
 if [ -n "$kern" ]; then
+        mount "$root" /new_root
+        cd /usr/lib/firmware/
+        find * -maxdepth 0 -exec sh -c "echo {} | cut -d '.' -f 1" \; | while read f; do find /new_root/usr/lib/firmware -name "$f.*" | while read n; do cp -rf $n /usr/lib/firmware; done; done;
+        mkdir -p /usr/lib/modules/$kern/kernel
+        cd /usr/lib/modules/$(uname -r)/kernel
+        find * -exec sh -c "echo {} | cut -d '.' -f 1" \; | while read f; do find /new_root/usr/lib/modules/$kern/kernel -type f -name "$f.*" | while read f; do cp -f $f /usr/lib/modules/$kern/kernel/ 2>/dev/null; done; done;
+        cp -rf /new_root/usr/lib/modules/$kern/mod* /usr/lib/modules/$kern
+        depmod -a $kern
     {
         cd /
-        find . -type d \( -path ./dev -o -path ./run -o -path ./sys -o -path ./proc -o -path ./usr/lib/modules/$(uname -r) \) -prune -o -print | cpio -H newc -o
-        mount "$root" /new_root
-        cd /new_root && find ./usr/lib/modules/$kern | cpio -o -H newc
+        find . -type d \( -path ./dev -o -path ./new_root -o -path ./run -o -path ./sys -o -path ./proc -o -path ./usr/lib/modules/"$(uname -r)" \) -prune -o -print | cpio -H newc -o
     } > /run/init.img
-    #umount /new_root
-    #mount /dev/nvme0n1p1 /new_root
-#    cat /new_root/EFI/phyos/amd-ucode.img /run/inittmp.img > /tmp/init.img
-   # find . -type d \( -path ./dev -o -path ./run -o -path ./sys -o -path ./proc \) -prune -o -print
+
     path=$(find /new_root/boot -name "vmlinuz-$kern")
+    if [ -z $path ]; then
+        path=$(find /new_root/boot -type f -name "vmlinuz*" | sort -n | tail -1)
+    fi
+
     kexec -l $path --initrd=/run/init.img --append=root="$root"\ init=/usr/lib/systemd/systemd\ quiet\ splash\ loglevel=3
+    if [ "${break}" = "y" ] || [ "${break}" = "prekexec" ]; then
+        echo ":: Pre-mount break requested, type 'exit' to resume operation"
+        launch_interactive_shell
+    fi
+    modprobe -rf ${earlymodules//,/ } $MODULES
+    run_hookfunctions 'run_cleanuphook' 'cleanup hook' $CLEANUPHOOKS
     umount -a
     kexec -e
 fi

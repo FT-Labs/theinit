@@ -147,18 +147,79 @@ kver_x86() {
     printf '%s' "$kver"
 }
 
+detect_compression() {
+    local bytes
+
+    read -rd '' bytes < <(hexdump -n 6 -e '"%c"' "$1")
+    case $bytes in
+        $'\xfd7zXZ')
+            echo 'xz'
+            return
+            ;;
+    esac
+
+    read -rd '' bytes < <(hexdump -n 4 -e '"%c"' "$1")
+    if [[ $bytes = $'\x89LZO' ]]; then
+        echo 'lzop'
+        return
+    fi
+
+    read -rd '' bytes < <(hexdump -n 2 -e '"%x"' "$1")
+    if [[ $bytes = '8b1f' ]]; then
+        echo 'gzip'
+        return
+    fi
+
+    read -rd '' bytes < <(hexdump -n 4 -e '"%x"' "$1")
+    case $bytes in
+        184d2204)
+            error 'Newer lz4 stream format detected! This may not boot!'
+            echo 'lz4'
+            return
+            ;;
+        184c2102)
+            echo 'lz4 -l'
+            return
+            ;;
+        fd2fb528)
+            echo 'zstd'
+            return
+            ;;
+    esac
+
+    read -rd '' bytes < <(hexdump -n 3 -e '"%c"' "$1")
+    if [[ $bytes == 'BZh' ]]; then
+        echo 'bzip2'
+        return
+    fi
+
+    # lzma detection sucks and there's really no good way to
+    # do it without reading large portions of the stream. this
+    # check is good enough for GNU tar, apparently, so it's good
+    # enough for me.
+    read -rd '' bytes < <(hexdump -n 3 -e '"%x"' "$1")
+    if [[ $bytes = '5d' ]]; then
+        echo 'lzma'
+        return
+    fi
+
+    # out of ideas, assuming uncompressed
+}
+
 kver_generic() {
-    # For unknown architectures, we can try to grep the uncompressed
+    # For unknown architectures, we can try to grep the uncompressed or gzipped
     # image for the boot banner.
-    # This should work at least for ARM when run on /boot/Image. On
-    # other architectures it may be worth trying rather than bailing,
-    # and inform the user if none was found.
+    # This should work at least for ARM when run on /boot/Image, or RISC-V on
+    # gzipped /boot/vmlinuz-linuz. On other architectures it may be worth trying
+    # rather than bailing, and inform the user if none was found.
 
     # Loosely grep for `linux_banner`:
     # https://elixir.bootlin.com/linux/v5.7.2/source/init/version.c#L46
-    local kver=
+    local kver= reader=cat
+    
+    [[ $(detect_compression "$1") == 'gzip' ]] && reader=zcat
 
-    read _ _ kver _ < <(grep -m1 -aoE 'Linux version .(\.[-[:alnum:]+]+)+' "$1")
+    read _ _ kver _ < <($reader "$1" | grep -m1 -aoE 'Linux version .(\.[-[:alnum:]+]+)+')
 
     printf '%s' "$kver"
 }
@@ -556,12 +617,14 @@ add_file() {
     (( $# )) || return 1
 
     # determine source and destination
-    local src=$1 dest=${2:-$1} mode=
+    local src=$1 dest=${2:-$1} mode= srcrealpath
 
     if [[ ! -f $src ]]; then
         error "file not found: \`%s'" "$src"
         return 1
     fi
+    src="$(realpath -s -- "$src")"
+    dest="$(realpath -ms -- "$dest")"
 
     mode=${3:-$(stat -c %a "$src")}
     if [[ -z $mode ]]; then
@@ -574,7 +637,23 @@ add_file() {
     else
         quiet "adding file: %s" "$dest"
     fi
-    command install -Dm$mode "$src" "$BUILDROOT$dest"
+    # check if $src is a symlink
+    if [[ -L "$src" ]]; then
+        # add the file
+        srcrealpath="$(realpath -- "$src")"
+        mode="$(stat -c %a -- "$srcrealpath")"
+        add_file "$srcrealpath" "$srcrealpath" "$mode"
+        [[ -d "${BUILDROOT}${dest%/*}" ]] || install -d -- "${BUILDROOT}${dest%/*}"
+        if [[ "$src" == "$dest" ]]; then
+            # copy the symlink to preserve relativity
+            cp -adT -- "$src" "${BUILDROOT}${src}"
+        else
+            # create the symlink
+            add_symlink "$src" "$dest"
+        fi
+    else
+       command install -Dm$mode "$src" "$BUILDROOT$dest"
+    fi
 }
 
 add_runscript() {
@@ -629,8 +708,10 @@ add_binary() {
         error "file not found: \`%s'" "$1"
         return 1
     fi
+    binary="$(realpath -s -- "$binary")"
 
     dest=${2:-$binary}
+    dest="$(realpath -ms -- "$dest")"
     mode=$(stat -c %a "$binary")
 
     # always add the binary itself
@@ -736,7 +817,7 @@ initialize_buildroot() {
     # creates a temporary directory for the buildroot and initialize it with a
     # basic set of necessary directories and symlinks
 
-    local workdir= kernver=$1 arch=$(uname -m) buildroot
+    local workdir= kernver=$1 arch=$(uname -m) buildroot osreleasefile
 
     if ! workdir=$(mktemp -d --tmpdir mkinitcpio.XXXXXX); then
         error 'Failed to create temporary working directory in %s' "${TMPDIR:-/tmp}"
@@ -750,14 +831,11 @@ initialize_buildroot() {
     fi
 
     # base directory structure
-    install -dm755 "$buildroot"/{new_root,proc,sys,dev,run,tmp,var,etc,usr/{local,lib,bin}}
+    install -dm755 "$buildroot"/{new_root,proc,sys,dev,run,tmp,var,etc,usr/{local{,/bin,/sbin,/lib},lib,bin}}
     ln -s "usr/lib" "$buildroot/lib"
-    ln -s "../lib"  "$buildroot/usr/local/lib"
     ln -s "bin"     "$buildroot/usr/sbin"
     ln -s "usr/bin" "$buildroot/bin"
     ln -s "usr/bin" "$buildroot/sbin"
-    ln -s "../bin"  "$buildroot/usr/local/bin"
-    ln -s "../bin"  "$buildroot/usr/local/sbin"
     ln -s "/run"    "$buildroot/var/run"
 
     case $arch in
@@ -774,11 +852,23 @@ initialize_buildroot() {
     [[ $kernver != none ]] && install -dm755 "$buildroot/usr/lib/modules/$kernver/kernel"
 
     # mount tables
-    ln -s /proc/self/mounts "$buildroot/etc/mtab"
+    ln -s ../proc/self/mounts "$buildroot/etc/mtab"
     >"$buildroot/etc/fstab"
 
-    # indicate that this is an initramfs
-    >"$buildroot/etc/initrd-release"
+    # add os-release and initrd-release for systemd
+    if [[ -e /etc/os-release ]]; then
+        if [[ -L /etc/os-release ]]; then
+            osreleasefile="$(realpath -- /etc/os-release)"
+            install -Dm0644 "$osreleasefile" "${buildroot}${osreleasefile}"
+            cp -adT /etc/os-release "${buildroot}/etc/os-release"
+            cp -adT /etc/os-release "${buildroot}/etc/initrd-release"
+        else
+            install -Dm0644 /etc/os-release "${buildroot}/etc/os-release"
+            ln -sT os-release "${buildroot}/etc/initrd-release"
+        fi
+    else
+        >"$buildroot/etc/initrd-release"
+    fi
 
     # add a blank ld.so.conf to keep ldconfig happy
     >"$buildroot/etc/ld.so.conf"
@@ -858,35 +948,31 @@ install_modules() {
         return 0
     fi
 
-    cp "$@" "$moduledest/kernel"
 
-    # unzip modules prior to recompression
     for m in "$@"; do
-        case $m in
-            *.xz)
-                xz_comp+=("$moduledest/kernel/${m##*/}")
-                ;;
-            *.gz)
-                gz_comp+=("$moduledest/kernel/${m##*/}")
-                ;;
-            *.zst)
-                zst_comp+=("$moduledest/kernel/${m##*/}")
-                ;;
-        esac
+        install -D -m644 "$m" "$BUILDROOT/$m"
+        # unzip modules prior to recompression
+        if [[ "$MODULES_DECOMPRESS" == 'yes' ]]; then
+            case "$m" in
+                *.xz)
+                    xz_comp+=("$BUILDROOT/$m")
+                    ;;
+                *.gz)
+                    gz_comp+=("$BUILDROOT/$m")
+                    ;;
+                *.zst)
+                    zst_comp+=("$BUILDROOT/$m")
+                    ;;
+            esac
+        fi
     done
+
     (( ${#xz_comp[*]} )) && xz -d "${xz_comp[@]}"
     (( ${#gz_comp[*]} )) && gzip -d "${gz_comp[@]}"
     (( ${#zst_comp[*]} )) && zstd -d --rm -q "${zst_comp[@]}"
 
     msg "Generating module dependencies"
     install -m644 -t "$moduledest" "$_d_kmoduledir"/modules.{builtin,builtin.modinfo,order}
-
-    # we install all modules into kernel/, making the .order file incorrect for
-    # the module tree. munge it, so that we have an accurate index. This avoids
-    # some rare and subtle issues with module loading choices when an alias
-    # resolves to multiple modules, only one of which can claim a device.
-    awk -F'/' '{ print "kernel/" $NF }' \
-        "$_d_kmoduledir"/modules.order >"$moduledest/modules.order"
 
     depmod -b "$BUILDROOT" "$KERNELVERSION"
 

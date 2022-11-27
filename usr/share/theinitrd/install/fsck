@@ -4,18 +4,28 @@ build() {
     local fsck= added=0
 
     add_fsck() {
-        [[ $1 = tmpfs ]] && return
-
-        if [[ $1 = ext[234] ]]; then
-            add_binary fsck.ext4
-            add_symlink /usr/bin/fsck.ext2 fsck.ext4
-            add_symlink /usr/bin/fsck.ext3 fsck.ext4
-        elif [[ $1 = xfs ]]; then
+        case "$1" in
+        ext[234])
+            add_binary e2fsck
+            add_symlink /usr/bin/fsck.ext2 e2fsck
+            add_symlink /usr/bin/fsck.ext3 e2fsck
+            add_symlink /usr/bin/fsck.ext4 e2fsck
+            if [[ -e /etc/e2fsck.conf ]]; then
+                add_file /etc/e2fsck.conf
+            fi
+            ;;
+        xfs)
             add_binary fsck.xfs
             add_binary xfs_repair
-        else
-            add_binary "fsck.$1"
-        fi
+            ;;
+        *)
+            if compgen -c "fsck.$1" &> /dev/null; then
+                add_binary "fsck.$1"
+            else
+                return 1
+            fi
+            ;;
+        esac
     }
 
     if (( ! fs_autodetect_failed )) && [[ $rootfstype$usrfstype ]]; then
@@ -26,9 +36,8 @@ build() {
             add_fsck $usrfstype && (( ++added ))
         fi
     else
-        for fsck in /usr/bin/fsck.* /usr/bin/xfs_repair; do
-            [[ -f $fsck ]] || continue
-            add_binary "$fsck" && (( ++added ))
+        for fsck in $(compgen -c fsck.); do
+            add_fsck "${fsck#fsck.}" && (( ++added ))
         done
     fi
 
@@ -38,10 +47,6 @@ build() {
     fi
 
     add_binary fsck
-    if [[ -e /etc/e2fsck.conf ]]; then
-        add_file /etc/e2fsck.conf
-    fi
-
 }
 
 help() {
