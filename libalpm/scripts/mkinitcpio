@@ -44,7 +44,7 @@ remove_kernel() {
     kernel="/boot/vmlinuz-${1}"
     preset="/etc/mkinitcpio.d/${1}.preset"
     initramfs="/boot/initramfs-${1}.img"
-    fallback_initramfs="/boot/initramfs-${1}-fallback.img"
+    fallback_initramfs="/boot/initramfs-${1}-safegraphics.img"
     # remove the installed kernel
     rm -f -- "$kernel"
 

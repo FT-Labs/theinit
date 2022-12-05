@@ -1,14 +1,14 @@
-pkgname=mkinitcpio-git
+pkgname=theinit
 pkgver=$(make version)
 pkgrel=1
 pkgdesc="Modular initramfs image creation utility"
 arch=(any)
-url="https://git.archlinux.org/mkinitcpio.git/"
+url="https://github.com/FT-Labs/theinit"
 license=('GPL')
 groups=('base')
 conflicts=('mkinitcpio')
 provides=("mkinitcpio=$pkgver" "initramfs")
-depends=('mkinitcpio-busybox>=1.19.4-2' 'kmod' 'util-linux>=2.23' 'libarchive' 'coreutils'
+depends=('theinit-busybox>=1.19.4-2' 'kmod' 'util-linux>=2.23' 'libarchive' 'coreutils'
          'awk' 'bash' 'binutils' 'findutils' 'grep' 'filesystem>=2011.10-1' 'systemd' 'zstd')
 makedepends=('asciidoc' 'git' 'sed')
 optdepends=('gzip: Use gzip compression for the initramfs image'

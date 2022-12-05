@@ -1,6 +1,12 @@
 #!/usr/bin/ash
 
-export PATH='/usr/local/sbin:/usr/local/bin:/usr/bin'
+[ -d /dev ] || mkdir -m 0755 /dev
+[ -d /sys ] || mkdir /sys
+[ -d /proc ] || mkdir /proc
+[ -d /tmp ] || mkdir /tmp
+[ -d /run ] || mkdir /run
+[ -d /run/plymouth ] || mkdir /run/plymouth
+[ -d /new_root ] || mkdir /new_root
 
 udevd_running=0
 mount_handler=default_mount_handler
@@ -37,6 +43,46 @@ if [ "${break}" = "y" ] || [ "${break}" = "premount" ]; then
     launch_interactive_shell
 fi
 
+if [ -n "$kern" ]; then
+        mount "$root" /new_root
+        path=$(find /new_root/boot -name "vmlinuz-$kern")
+        if [ -z $path ]; then
+            path=$(find /new_root/boot -type f -name "vmlinuz*" | sort -n | tail -1)
+            kern="${path##*vmlinuz-}"
+        fi
+        mkdir -p /usr/lib/modules/$kern/kernel
+        cd /new_root/usr/lib/modules/$kern
+        ext=$(head -1 ./modules.dep | tr -d ":" | cut -d '.' -f 3-)
+        if [ ! -z $ext ]; then
+            ext=".$ext"
+        fi
+        mods=$(cat modules.builtin | tr "\n" "|")
+        cat /bin/mod.sh | grep -v -E "${mods::-1}" | sed "s/\$/$ext/g" | cpio -pdu /usr/lib/modules/$kern
+        cp -f /new_root/usr/lib/modules/$kern/*builtin* /usr/lib/modules/$kern
+        cd /new_root/usr/lib/firmware
+        cat /bin/firm.sh | xargs -I % sh -c "ls ./%* 2>/dev/null" | cpio -pdu /usr/lib/firmware
+        depmod -a $kern
+        # cp -rf /new_root/etc/modprobe.d /etc
+        # cp -rf /new_root/usr/lib/modprobe.d /usr/lib
+    {
+        cd /
+        find . -type d \( -path ./dev -o -path ./new_root -o -path ./run -o -path ./sys -o -path ./proc -o -path ./usr/lib/modules/$(uname -r) \) -prune -o -print0 | cpio --null --quiet -H newc -o 2>/dev/null
+    } > /run/theinit.img
+
+    kexec -l $path --initrd=/run/theinit.img --append=root="$root"\ udev.log-priority=3\ loglevel=3\ rw\ quiet\ splash
+
+    if [ "${break}" = "y" ] || [ "${break}" = "prekexec" ]; then
+        echo ":: Pre-mount break requested, type 'exit' to resume operation"
+        launch_interactive_shell
+    fi
+    # plymouth --quit
+    run_hookfunctions 'run_cleanuphook' 'cleanup hook' $CLEANUPHOOKS
+    rdlogger_stop
+    # uniq /bin/mod.sh | xargs modprobe -rf
+    umount -a
+    kexec -x -y -e
+fi
+
 rootdev=$(resolve_device "$root") && root=$rootdev
 unset rootdev
 
@@ -57,12 +103,15 @@ if [ "$(stat -c %D /)" = "$(stat -c %D /new_root)" ]; then
     echo
     launch_interactive_shell --exec
 elif [ ! -x "/new_root${init}" ]; then
-    # Successfully mounted /new_root, but ${init} is missing
-    # The same logic as above applies
-    err "Root device mounted successfully, but ${init} does not exist."
-    echo "Bailing out, you are on your own. Good luck."
-    echo
-    launch_interactive_shell --exec
+    cd /new_root
+    if [ ! -x "${init}" ]; then
+        # Successfully mounted /new_root, but ${init} is missing
+        # The same logic as above applies
+        err "Root device mounted successfully, but ${init} does not exist."
+        echo "Bailing out, you are on your own. Good luck."
+        echo
+        launch_interactive_shell --exec
+    fi
 fi
 
 if [ "${break}" = "postmount" ]; then

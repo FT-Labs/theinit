@@ -3,21 +3,21 @@
 # mkinitcpio - modular tool for building an initramfs images
 #
 
-declare -r version=%VERSION%
+declare -r version=33
 
 shopt -s extglob
 
 ### globals within mkinitcpio, but not intended to be used by hooks
 
 # needed files/directories
-_f_functions=functions
-_f_config=mkinitcpio.conf
-_d_hooks="$PWD/hooks:/usr/lib/initcpio/hooks:/lib/initcpio/hooks"
-_d_install="$PWD/install:/usr/lib/initcpio/install:/lib/initcpio/install"
+_f_functions=/usr/lib/initcpio/functions
+_f_config=/etc/mkinitcpio.conf
+_d_hooks=/etc/initcpio/hooks:/usr/lib/initcpio/hooks
+_d_install=/etc/initcpio/install:/usr/lib/initcpio/install
 _d_flag_hooks=
 _d_flag_install=
 _d_firmware=({/usr,}/lib/firmware/updates {/usr,}/lib/firmware)
-_d_presets=mkinitcpio.d
+_d_presets=/etc/mkinitcpio.d
 
 # options and runtime data
 _optmoduleroot= _optgenimg=
@@ -756,6 +756,14 @@ trap '(( ++_builderrors ))' ERR
 set -o errtrace
 
 install_modules "${!_modpaths[@]}"
+#mods=$(printf "%s\n" "${!_modpaths[@]}" | awk -F/ '{print $NF}' | cut -d '.' -f 1 | xargs -I % echo -n "/%.*:\|")
+#printf "%s\n" "${!_modpaths[@]}" | awk -F/ '{print $NF}' | cut -d '.' -f 1 | xargs modinfo --field=firmware > "$BUILDROOT/bin/firm.sh"
+printf "%s\n" "${!_addedmodules[@]}" | xargs modinfo --field=firmware 2>/dev/null | tr -s "\n" > "$BUILDROOT/bin/firm.sh"
+# echo -n "${mods::-2}" > "$BUILDROOT/bin/mod.sh"
+{
+    cat "${_d_kmoduledir}/modules.builtin"
+    printf "%s\n" "${!_addedmodules[@]}" | xargs modinfo --filename 2>/dev/null | grep -v "(builtin)" | rev | cut -d '.' -f 2- | rev | cut -d '/' -f 5-
+} | LC_ALL=C sort >> "$BUILDROOT/bin/mod.sh"
 
 # unset errtrace and trap
 set +o functrace
