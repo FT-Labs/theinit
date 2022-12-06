@@ -52,9 +52,9 @@ install: all
 	install -m644 theinit.conf $(DESTDIR)/etc/theinit.conf
 	install -m755 -t $(DESTDIR)/usr/lib/theinit init shutdown
 	install -m644 -t $(DESTDIR)/usr/lib/theinit init_functions functions
-	cp -a udev $(DESTDIR)/usr/lib/theinit/
+	cp -ar udev $(DESTDIR)/usr/lib/theinit/
 
-	cp -at $(DESTDIR)/usr/lib/theinit hooks install
+	cp -art $(DESTDIR)/usr/lib/theinit hooks install
 	install -m644 -t $(DESTDIR)/usr/share/theinit theinit.d/*
 	install -m644 tmpfiles/theinit.conf $(DESTDIR)/usr/lib/tmpfiles.d/theinit.conf
 

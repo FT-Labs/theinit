@@ -23,7 +23,7 @@ _d_presets=/etc/theinit.d
 _optmoduleroot= _optgenimg=
 _optcompress= _opttargetdir=
 _optosrelease=
-_optuefi="$(findmnt --types=vfat --first-only --noheadings | awk '{print $1}')/EFI/theinit.efi"
+_optuefi=
 _optmicrocode=() _optsplash= _optkernelimage= _optuefistub=
 _optcmdline="quiet splash loglevel=3 udev.log-priority=3"
 _optshowautomods=0 _optsavetree=0 _optshowmods=0 _optremove=0
@@ -573,6 +573,10 @@ while :; do
         -n|--nocolor)
             _optcolor=0
             ;;
+        -P|--allpresets)
+            _optpreset=("$_d_presets"/*.preset)
+            [[ -e ${_optpreset[0]} ]] || die "No presets found in $_d_presets"
+            ;;
         -U|--uefi)
             if [[ $2 != "--" ]]; then
                 shift
@@ -580,6 +584,8 @@ while :; do
                 if ! _optuefi=$(readlink -f "$1") || [[ ! -e ${_optuefi%/*} ]]; then
                     die "Unable to write to path: \`%s'" "$1"
                 fi
+            else
+                _optuefi="$(findmnt --types=vfat --first-only --noheadings | awk '{print $1}')/EFI/theinit.efi"
             fi
             ;;
         -v|--verbose)
@@ -619,10 +625,6 @@ while :; do
         --microcode)
             shift
             _optmicrocode+=($1)
-            ;;
-        -P|--allpresets)
-            _optpreset=("$_d_presets"/*.preset)
-            [[ -e ${_optpreset[0]} ]] || die "No presets found in $_d_presets"
             ;;
         --osrelease)
             shift

@@ -290,14 +290,11 @@ map() {
 
 arrayize_config() {
     set -f
-    GPU=$(lshw -xml -class display | grep driver | tr -d '<>/"')
-    GPU=( ${GPU##*value=} )
     [[ ${MODULES@a} != *a* ]] && MODULES=($MODULES)
     [[ ${BINARIES@a} != *a* ]] && BINARIES=($BINARIES)
     [[ ${FILES@a} != *a* ]] && FILES=($FILES)
     [[ ${HOOKS@a} != *a* ]] && HOOKS=($HOOKS)
     [[ ${COMPRESSION_OPTIONS@a} != *a* ]] && COMPRESSION_OPTIONS=($COMPRESSION_OPTIONS)
-    MODULES=(${GPU[@]} ${MODULES[@]})
     set +f
 }
 
@@ -779,6 +776,9 @@ add_udev_rule() {
 parse_config() {
     # parse key global variables set by the config file.
 
+    GPU=$(lshw -xml -class display | grep driver | tr -d '<>/"')
+    GPU=( ${GPU##*value=} )
+    MODULES=( ${GPU[@]} ${MODULES[@]} )
     map add_module "${MODULES[@]}"
     map add_binary "${BINARIES[@]}"
     map add_file "${FILES[@]}"
@@ -800,7 +800,7 @@ parse_config() {
             # only add real modules (2 == builtin)
             (( _addedmodules["$mod"] == 1 )) && add+=("$mod")
         done
-        (( ${#add[*]} )) && printf 'MODULES="%s"\n' "${add[*]}"
+        (( ${#add[*]} )) || (( ${#GPU[*]} )) && printf 'MODULES="%s"\n' "${GPU[*]} ${add[*]}"
 
         printf '%s="%s"\n' \
             'EARLYHOOKS' "${_runhooks['early']# }" \
