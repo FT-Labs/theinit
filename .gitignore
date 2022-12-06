@@ -1,0 +1,6 @@
+mktheinit.8
+mktheinit.conf.5
+lsinitcpio.1
+*~
+*.bak
+mktheinit-*.tar.gz
