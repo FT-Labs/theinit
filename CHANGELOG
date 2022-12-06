@@ -5,18 +5,18 @@ CHANGES WITH v33:
         Announcements:
     
         * Development has moved to the Arch Linux GitLab instance. The new
-          URL is https://gitlab.archlinux.org/archlinux/mkinitcpio/mkinitcpio
+          URL is https://gitlab.archlinux.org/archlinux/mktheinit/mktheinit
     
-        Changes in mkinitcpio:
+        Changes in mktheinit:
         
-        * Introduce DECOMPRESS_MODULES in mkinitcpio.conf. Allows the user to
+        * Introduce DECOMPRESS_MODULES in mktheinit.conf. Allows the user to
           toggle if modules should be recompressed during initramfs creation or
           not. Defaults to "yes".
 
         * Support UKI generation on AArch64.
 
-        * Introduce a new --remove switch which allows mkinitcpio to remove all
-          mkinitcpio generated files. Only works together
+        * Introduce a new --remove switch which allows mktheinit to remove all
+          mktheinit generated files. Only works together
           with the -p/-P switches currently.
 
         * In the initramfs the file /etc/os-release, symlinked to
@@ -40,8 +40,8 @@ CHANGES WITH v33:
 
         Changes in packaging:
 
-        * mkinitcpio-remove and mkinitcpio-install are now unified into a single
-          script installed to 'libalpm/scripts/mkinitcpio'.
+        * mktheinit-remove and mktheinit-install are now unified into a single
+          script installed to 'libalpm/scripts/mktheinit'.
 
         Contributions from: 0x7F, Felix Yan, Hugo Osvaldo Barrera,
         Morten Linderud, nl6720, rogueai, Simon Brüggen, Tobias Powalowski

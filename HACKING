@@ -1,7 +1,7 @@
 Care and feeding of your initramfs generator
 --------------------------------------------
 
-This guide attempts to outline the style used in the mkinitcpio codebase.
+This guide attempts to outline the style used in the mktheinit codebase.
 
 
 Bash v. POSIX
@@ -13,7 +13,7 @@ the inferior '[' and 'test'.
 
 Variable usage and naming conventions
 ------------------------------------
-There are three classifications of variables in mkinitcpio.
+There are three classifications of variables in mktheinit.
 
 1) local variables: all lower case, and scoped within functions. Use
 freely, as they're well contained. Unless you're introducing a new
@@ -21,7 +21,7 @@ option, this is what you want to use.
 
   local foo=$1
 
-2) global variables: these are known to mkinitcpio internally, but are
+2) global variables: these are known to mktheinit internally, but are
 global in scope. They carry runtime configuration and data collected during the
 image generation process. These are always lower case, but carry a leading
 underscore to denote that they're global. It's helpful to prefix these
@@ -33,10 +33,10 @@ respectively.
   _f_config=/etc/foo.conf
 
 3) "API" variables: also global in scope, but exist "outside" of
-mkinitcpio -- either drawn in from the configuration file, or "exported"
+mktheinit -- either drawn in from the configuration file, or "exported"
 to the install hooks. These are always all upper case. When introducing
 new variables, extreme care must be taken to pick names that will not
-conflict with the environment inherited by mkinitcpio.
+conflict with the environment inherited by mktheinit.
 
 Function naming
 ---------------

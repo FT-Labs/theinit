@@ -54,7 +54,7 @@ _files_from_dirs() {
     printf '%s\n' "${files[@]%$stripsuf}"
 }
 
-_mkinitcpio() {
+_mktheinit() {
     local action cur prev opts
     opts=(-A --addhooks -c --config -D --hookdir -d --generatedir -g --generate -H --hookhelp -h --help -k --kernel
           -L --listhooks -M --automods -n --nocolor -P --allpresets -p --preset -R --remove -r --moduleroot
@@ -71,15 +71,15 @@ _mkinitcpio() {
         -k|--kernel)
             _find_kernel_versions ;;
         -p|--preset)
-            COMPREPLY=($(compgen -W "$(_files_from_dirs -s .preset /etc/mkinitcpio.d)" -- "$cur")) ;;
+            COMPREPLY=($(compgen -W "$(_files_from_dirs -s .preset /etc/mktheinit.d)" -- "$cur")) ;;
         -[AHS]|--add|--hookhelp|--skiphooks)
-            COMPREPLY=($(compgen -W "$(_files_from_dirs {/usr,}/lib/initcpio/install)" -- "$cur")) ;;
+            COMPREPLY=($(compgen -W "$(_files_from_dirs {/usr,}/lib/theinit/install)" -- "$cur")) ;;
         *)
             COMPREPLY=($(compgen -W "${opts[*]}" -- "$cur")) ;;
     esac
 }
 
-complete -F _mkinitcpio mkinitcpio
+complete -F _mktheinit mktheinit
 complete -F _lsinitcpio lsinitcpio
 
 # vim: set et ts=4 sw=4 ft=sh:

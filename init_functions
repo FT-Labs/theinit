@@ -146,7 +146,7 @@ parse_cmdline_item() {
             rwopt=$key
             ;;
         fstype)
-            # The kernel understands 'rootfstype', but mkinitcpio has (without
+            # The kernel understands 'rootfstype', but mktheinit has (without
             # documentation) supported 'fstype' instead. Ensure we support both
             # for backwards compat, but make fstype legacy.
             rootfstype=$value

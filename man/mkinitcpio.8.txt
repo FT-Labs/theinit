@@ -1,16 +1,16 @@
 /////
 vim:set ts=4 sw=4 syntax=asciidoc noet:
 /////
-mkinitcpio(8)
+mktheinit(8)
 =============
 
 Name
 ----
-mkinitcpio - Create an initial ramdisk environment
+mktheinit - Create an initial ramdisk environment
 
 Synopsis
 --------
-'mkinitcpio' [options]
+'mktheinit' [options]
 
 Description
 -----------
@@ -18,7 +18,7 @@ Creates an initial ramdisk environment for booting the linux kernel. The
 initial ramdisk is in essence a very small environment (early userspace) which
 loads various kernel modules and sets up necessary things before handing over
 control to init. This makes it possible to have, for example, encrypted root
-filesystems and root filesystems on a software RAID array. mkinitcpio allows
+filesystems and root filesystems on a software RAID array. mktheinit allows
 for easy extension with custom hooks, has autodetection at runtime, and many
 other features.
 
@@ -30,7 +30,7 @@ Options
 	comma-separated. This option can be specified multiple times.
 
 *-c, \--config* 'config'::
-	Use 'config' file to generate the ramdisk. Default: '/etc/mkinitcpio.conf'.
+	Use 'config' file to generate the ramdisk. Default: '/etc/mktheinit.conf'.
 
 *-d, \--generatedir* 'directory'::
 	Set 'directory' as the location where the initramfs is built. This might be
@@ -60,7 +60,7 @@ Options
 	List all available hooks.
 
 *-M, \--automods*::
-	Display modules found via autodetection. mkinitcpio will automatically try to
+	Display modules found via autodetection. mktheinit will automatically try to
 	determine which kernel modules are needed to start your computer. This option
 	lists which modules were detected.
 
@@ -76,12 +76,12 @@ Options
 	For a list of relevant options see 'Options for UEFI executable' below.
 
 *-P, \--allpresets*::
-	Process all presets contained in '/etc/mkinitcpio.d'. See the '-p' option for
+	Process all presets contained in '/etc/mktheinit.d'. See the '-p' option for
 	more detail about presets.
 
 *-p, \--preset* 'preset'::
 	Build initramfs image(s) according to specified 'preset'. This may be a file in
-	/etc/mkinitcpio.d (without the .preset extension) or a full, absolute path to a
+	/etc/mktheinit.d (without the .preset extension) or a full, absolute path to a
 	file. This option may be specified multiple times to process multiple presets.
 
 *-R, \--remove*::
@@ -151,11 +151,11 @@ A preset is a pre-defined definition on how to create an initial ramdisk.
 Instead of specifying the configuration file and which output file, every time
 you generate a new initial ramdisk, you define a preset and use the -p switch
 to generate an initial ramdisk according to your preset. Presets are located in
-/etc/mkinitcpio.d
+/etc/mktheinit.d
 
 About Install Hooks
 -------------------
-Install hooks are bash scripts which are sourced during mkinitcpio runtime in
+Install hooks are bash scripts which are sourced during mktheinit runtime in
 order to add modules, binaries, and other files to the image. A variety of
 functions exist to facilitate this.
 
@@ -270,11 +270,11 @@ run in reverse.
 
 Early Init Environment
 ----------------------
-mkinitcpio gives special treatment to certain environment variables passed on
+mktheinit gives special treatment to certain environment variables passed on
 the kernel command line:
 
 *break*['=<premount|postmount>']::
-	If specified, mkinitcpio will start a shell during early init. The optional
+	If specified, mktheinit will start a shell during early init. The optional
 	parameter controls when this occurs: when 'premount' or no parameter are
 	specified, the shell will be launched prior to mounting root. If 'postmount'
 	is specified, the shell will be launched after mounting root.
@@ -289,7 +289,7 @@ the kernel command line:
 	or kernel problem.
 
 *quiet*::
-	Causes mkinitcpio to output fewer messages during boot. Errors will not be
+	Causes mktheinit to output fewer messages during boot. Errors will not be
 	suppressed.
 
 *ro*::
@@ -302,7 +302,7 @@ the kernel command line:
 
 *root=*'rootdevice'::
 	This variable describes the root partition which early init will mount
-	before passing control to the real init. mkinitcpio understands a variety of
+	before passing control to the real init. mktheinit understands a variety of
 	formats, the most basic of which is the path to the block device, either
 	directly such as '/dev/sda2', or using a udev symlink such as
 	'/dev/disk/by-label/CorsairF80-root'. Support for identification by LABEL or
@@ -312,7 +312,7 @@ the kernel command line:
 	should be avoided as it tends to be fragile.
 
 *rootdelay=*'seconds'::
-	Sets the delay, in seconds, that mkinitcpio is willing to wait for the root
+	Sets the delay, in seconds, that mktheinit is willing to wait for the root
 	device to show up, if it is not available immediately. This defaults to 10
 	seconds. If an invalid integer is passed, this variable will have no effect.
 
@@ -350,15 +350,15 @@ the kernel command line:
 	*all*;;
 		Writes output to all known log targets.
 
-These are only the variables that the core of mkinitcpio honor. Additional
+These are only the variables that the core of mktheinit honor. Additional
 hooks may look for other environment variables and should be documented by the
 help output for the hook.
 
 Reproducibility
 ---------------
-mkinitcpio aims to create reproducible initramfs images by default.
+mktheinit aims to create reproducible initramfs images by default.
 
-This means that two subsequent runs of mkinitcpio should produce two files
+This means that two subsequent runs of mktheinit should produce two files
 that are identical at the binary level.
 
 Timestamps within the initramfs are set to the Unix epoch of 1970-01-01.
@@ -372,48 +372,48 @@ More information can be found at https://reproducible-builds.org.
 
 Files
 -----
-'/etc/mkinitcpio.conf'::
-	Default configuration file for mkinitcpio.
+'/etc/mktheinit.conf'::
+	Default configuration file for mktheinit.
 
-'/etc/mkinitcpio.d'::
-	Directory containing mkinitcpio presets.
+'/etc/mktheinit.d'::
+	Directory containing mktheinit presets.
 
-'/etc/initcpio/install'::
-'/usr/lib/initcpio/install'::
+'/etc/theinit/install'::
+'/usr/lib/theinit/install'::
 	Search path for build time hooks.
 
-'/etc/initcpio/hooks'::
-'/usr/lib/initcpio/hooks'::
+'/etc/theinit/hooks'::
+'/usr/lib/theinit/hooks'::
 	Search path for early userspace runtime hooks.
 
 Examples
 --------
-*mkinitcpio*::
+*mktheinit*::
 	Perform a 'dry-run'. This will generate an initial ramdisk but will not
 	write anything. Use -g to create the real image.
 
-*mkinitcpio -p linux*::
+*mktheinit -p linux*::
 	Create an initial ramdisk based on the 'linux' preset.
 
-*mkinitcpio -g /boot/initramfs-linux.img -k /boot/vmlinuz-linux*::
+*mktheinit -g /boot/initramfs-linux.img -k /boot/vmlinuz-linux*::
 	Create an initial ramdisk for the kernel at /boot/vmlinuz-linux. The
 	resulting image will be written to /boot/initramfs-linux.img.
 
-*mkinitcpio -U /efi/EFI/Linux/systemd-linux.efi*::
+*mktheinit -U /efi/EFI/Linux/systemd-linux.efi*::
 	Create an initial ramdisk for the kernel along with a UEFI executable.
 	The resuling executable will be written to /efi/EFI/Linux/systemd-linux.efi.
 
-*mkinitcpio -U /efi/EFI/Linux/systemd-linux.efi --microcode /boot/intel-ucode.img --splash /usr/share/systemd/bootctl/splash-arch.bmp*::
+*mktheinit -U /efi/EFI/Linux/systemd-linux.efi --microcode /boot/intel-ucode.img --splash /usr/share/systemd/bootctl/splash-arch.bmp*::
 	Create an initial ramdisk for the kernel and an UEFI executable. This
 	also includes the Intel CPU microcode and a splash image which will be
 	used during boot.
 
 See also
 --------
-A more thorough article on configuring mkinitcpio:
+A more thorough article on configuring mktheinit:
 <http://wiki.archlinux.org/index.php/Mkinitcpio>
 
-*initrd*(4), *lsinitcpio*(1), *mkinitcpio.conf*(5), *bootparam*(7)
+*initrd*(4), *lsinitcpio*(1), *mktheinit.conf*(5), *bootparam*(7)
 
 Bugs
 ----
@@ -422,7 +422,7 @@ Upon writing this manpage, there were no noticeable bugs present. Please visit
 
 Authors
 -------
-mkinitcpio is created and maintained by the Arch Linux Developer community.
+mktheinit is created and maintained by the Arch Linux Developer community.
 
 Copyright
 ---------

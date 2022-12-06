@@ -1,5 +1,5 @@
 #!/bin/bash
-# /etc/initcpio/install/sd-plymouth — mkinitcpio/systemd hook for plymouth
+# /etc/theinit/install/sd-plymouth — mktheinit/systemd hook for plymouth
 
 build() {
 	add_dir /dev/pts

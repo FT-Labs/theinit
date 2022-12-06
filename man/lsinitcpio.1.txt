@@ -57,7 +57,7 @@ Upon writing this manpage, there were no noticeable bugs present. Please visit
 
 See Also
 --------
-*mkinitcpio*(8)
+*mktheinit*(8)
 
 Authors
 -------

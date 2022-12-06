@@ -1,21 +1,21 @@
 /////
 vim:set ts=4 sw=4 syntax=asciidoc noet:
 /////
-mkinitcpio.conf(5)
+mktheinit.conf(5)
 ==================
 
 Name
 ----
-mkinitcpio.conf - mkinitcpio configuration file
+mktheinit.conf - mktheinit configuration file
 
 Synopsis
 --------
-/etc/mkinitcpio.conf
+/etc/mktheinit.conf
 
 Description
 -----------
-mkinitcpio will attempt to read from a config file each time it is invoked,
-`/etc/mkinitcpio.conf' by default. This file defines several variables which
+mktheinit will attempt to read from a config file each time it is invoked,
+`/etc/mktheinit.conf' by default. This file defines several variables which
 describe the contents of the image to be generated.
 
 Variables
@@ -47,7 +47,7 @@ Variables
 
 	Defines an array of hooks which will be run during the build process.
 	Order is important, as it defines the order in which hooks will be run
-	during bootup. Use mkinitcpio's '-L' flag to list all available hooks,
+	during bootup. Use mktheinit's '-L' flag to list all available hooks,
 	and the '-H' flag to display the help text for a specific hook.
 
 *COMPRESSION*::
@@ -59,7 +59,7 @@ Variables
 	define this variable as *cat*.
 +
 It's not hard to realize that a filter such as a *tac* or *rev* will cause
-*mkinitcpio* to report success but generate a useless image. Similarly, using a
+*mktheinit* to report success but generate a useless image. Similarly, using a
 compression program not listed above may generate an equally useless image,
 despite being "valid".
 
@@ -77,11 +77,11 @@ despite being "valid".
 
 See Also
 --------
-*mkinitcpio*(8)
+*mktheinit*(8)
 
 Authors
 -------
-mkinitcpio is created and maintained by the Arch Linux Developer community.
+mktheinit is created and maintained by the Arch Linux Developer community.
 
 Copyright
 ---------

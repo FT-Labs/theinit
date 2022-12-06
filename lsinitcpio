@@ -153,7 +153,7 @@ analyze_image() {
     imagename=$_image
     [[ -L $_image ]] && imagename+=" -> $(readlink -e "$_image")"
     msg 'Image: %s %s' "$imagename"
-    [[ $version ]] && msg 'Created with mkinitcpio %s' "$version"
+    [[ $version ]] && msg 'Created with mktheinit %s' "$version"
     msg 'Kernel: %s' "${kernver:-unknown}"
     msg 'Size: %s' "$(size_to_human "$zsize")"
 
@@ -270,7 +270,7 @@ if (( _optanalyze )); then
     analyze_image "$_image"
 elif (( _optshowconfig )); then
     decomp "$_image" | bsdtar xOf - buildconfig 2>/dev/null ||
-        die 'Failed to extract config from image (mkinitcpio too old?)'
+        die 'Failed to extract config from image (mktheinit too old?)'
 else
     decomp "$_image" | bsdcpio "${bsdcpio_options[@]}"
 fi

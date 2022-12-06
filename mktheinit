@@ -1,29 +1,31 @@
 #!/bin/bash
 #
-# mkinitcpio - modular tool for building an initramfs images
+# mktheinit - modular tool for building an initramfs images
 #
 
 declare -r version=33
 
 shopt -s extglob
 
-### globals within mkinitcpio, but not intended to be used by hooks
+### globals within mktheinit, but not intended to be used by hooks
 
 # needed files/directories
-_f_functions=/usr/lib/initcpio/functions
-_f_config=/etc/mkinitcpio.conf
-_d_hooks=/etc/initcpio/hooks:/usr/lib/initcpio/hooks
-_d_install=/etc/initcpio/install:/usr/lib/initcpio/install
+_f_functions=/usr/lib/theinit/functions
+_f_config=/etc/theinit.conf
+_d_hooks=/etc/theinit/hooks:/usr/lib/theinit/hooks
+_d_install=/etc/theinit/install:/usr/lib/theinit/install
 _d_flag_hooks=
 _d_flag_install=
 _d_firmware=({/usr,}/lib/firmware/updates {/usr,}/lib/firmware)
-_d_presets=/etc/mkinitcpio.d
+_d_presets=/etc/theinit.d
 
 # options and runtime data
 _optmoduleroot= _optgenimg=
 _optcompress= _opttargetdir=
 _optosrelease=
-_optuefi= _optmicrocode=() _optcmdline= _optsplash= _optkernelimage= _optuefistub=
+_optuefi="$(findmnt --types=vfat --first-only --noheadings | awk '{print $1}')/EFI/theinit.efi"
+_optmicrocode=() _optsplash= _optkernelimage= _optuefistub=
+_optcmdline="quiet splash loglevel=3 udev.log-priority=3"
 _optshowautomods=0 _optsavetree=0 _optshowmods=0 _optremove=0
 _optquiet=1 _optcolor=1
 _optskiphooks=() _optaddhooks=() _hooks=()  _optpreset=()
@@ -40,12 +42,12 @@ unset GREP_OPTIONS CDPATH "${!LIBMOUNT_@}"
 
 usage() {
     cat <<EOF
-mkinitcpio $version
+mktheinit $version
 usage: ${0##*/} [options]
 
   Options:
    -A, --addhooks <hooks>       Add specified hooks, comma separated, to image
-   -c, --config <config>        Use alternate config file. (default: /etc/mkinitcpio.conf)
+   -c, --config <config>        Use alternate config file. (default: /etc/mktheinit.conf)
    -g, --generate <path>        Generate cpio image and write to specified path
    -H, --hookhelp <hookname>    Display help for given hook and exit
    -h, --help                   Display this message and exit
@@ -53,8 +55,8 @@ usage: ${0##*/} [options]
    -L, --listhooks              List all available hooks
    -M, --automods               Display modules found via autodetection
    -n, --nocolor                Disable colorized output messages
-   -p, --preset <file>          Build specified preset from /etc/mkinitcpio.d
-   -P, --allpresets             Process all preset files in /etc/mkinitcpio.d
+   -p, --preset <file>          Build specified preset from /etc/mktheinit.d
+   -P, --allpresets             Process all preset files in /etc/mktheinit.d
    -R, --remove                 Remove specified preset images
                                 This option can only be used with either '-p|--presets' or '-P|--allpresets'
    -r, --moduleroot <dir>       Root directory for modules (default: /)
@@ -82,7 +84,7 @@ EOF
 
 version() {
     cat <<EOF
-mkinitcpio $version
+mktheinit $version
 EOF
 }
 
@@ -330,8 +332,9 @@ build_uefi(){
         msg2 "Using cmdline file: %s" "$cmdline"
     fi
     if [[ ! -f "$cmdline" ]]; then
-        error "Kernel cmdline file '%s' not found" "$cmdline"
-        return 1
+        _tmp=$(mktemp)
+        echo -n "$cmdline" > $_tmp
+        cmdline="$_tmp"
     fi
 
     if [[ -z "$osrelease" ]]; then
@@ -363,8 +366,8 @@ build_uefi(){
 
     objcopy \
         --add-section .osrel="$osrelease" --change-section-vma .osrel=0x20000 \
-        --add-section .cmdline=<(grep '^[^#]' "$cmdline" | tr -s '\n' ' ') --change-section-vma .cmdline=0x30000 \
         --add-section .linux="$kernelimg" --change-section-vma .linux=0x2000000 \
+        --add-section .cmdline=<(grep '^[^#]' "$cmdline" | tr -s '\n' ' ') --change-section-vma .cmdline=0x30000 \
         --add-section .initrd=<(cat ${microcode[@]} "$initramfs") --change-section-vma .initrd=0x3000000 \
         ${OBJCOPYARGS[@]} "$uefistub" "$out"
 
@@ -454,7 +457,7 @@ process_preset() (
 
         if (( _optremove )); then
             if (( ${#preset_remove_cmd[*]} )); then
-                # we won't be calling mkinitcpio recursively, so no need to set MKINITCPIO_PROCESS_PRESET
+                # we won't be calling mktheinit recursively, so no need to set MKINITCPIO_PROCESS_PRESET
                 for pr in "${preset_remove_cmd[@]}"; do
                     if [[ ! -f "${pr}" ]]; then
                         warning "Image not found: \`%s'" "$pr"
@@ -571,10 +574,12 @@ while :; do
             _optcolor=0
             ;;
         -U|--uefi)
-            shift
-            [[ -d $1 ]] && die "Invalid image path -- must not be a directory"
-            if ! _optuefi=$(readlink -f "$1") || [[ ! -e ${_optuefi%/*} ]]; then
-                die "Unable to write to path: \`%s'" "$1"
+            if [[ $2 != "--" ]]; then
+                shift
+                [[ -d $1 ]] && die "Invalid image path -- must not be a directory"
+                if ! _optuefi=$(readlink -f "$1") || [[ ! -e ${_optuefi%/*} ]]; then
+                    die "Unable to write to path: \`%s'" "$1"
+                fi
             fi
             ;;
         -v|--verbose)
@@ -669,14 +674,14 @@ fi
 
 # If we specified --uefi but no -g we want to create a temporary initramfs which will be used with the efi executable.
 if [[ $_optuefi && $_optgenimg == "" ]]; then
-    tmpfile=$(mktemp -t mkinitcpio.XXXXXX)
+    tmpfile=$(mktemp -t mktheinit.XXXXXX)
     trap "rm $tmpfile" EXIT
     _optgenimg="$tmpfile"
 fi
 
 # insist that /proc and /dev be mounted (important for chroots)
 # NOTE: avoid using mountpoint for this -- look for the paths that we actually
-# use in mkinitcpio. Avoids issues like FS#26344.
+# use in mktheinit. Avoids issues like FS#26344.
 [[ -e /proc/self/mountinfo ]] || die "/proc must be mounted!"
 [[ -e /dev/fd ]] || die "/dev must be mounted!"
 
