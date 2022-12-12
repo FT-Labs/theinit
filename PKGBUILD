@@ -1,6 +1,6 @@
 pkgname=theinit
 pkgver=$(make version)
-pkgrel=1
+pkgrel=2
 pkgdesc="Modular initramfs image creation utility"
 arch=(any)
 url="https://github.com/FT-Labs/theinit"
