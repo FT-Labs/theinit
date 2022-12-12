@@ -1,14 +1,14 @@
 # mkinitcpio preset file for the '%PKGBASE%' package
 
-ALL_config="/etc/mkinitcpio.conf"
-ALL_kver="/boot/vmlinuz-%PKGBASE%"
+ALL_config="/etc/theinit.conf"
+ALL_kver="/boot/vmlinuz-linux"
 
 PRESETS=('default' 'safegraphics')
 
 #default_config="/etc/mkinitcpio.conf"
-default_image="/boot/initramfs-%PKGBASE%.img"
+default_image="/boot/initramfs-linux.img"
 #default_options=""
 
 #fallback_config="/etc/mkinitcpio.conf"
-fallback_image="/boot/initramfs-%PKGBASE%-safegraphics.img"
+fallback_image="/boot/initramfs-linux-safegraphics.img"
 fallback_options="-S autodetect"
