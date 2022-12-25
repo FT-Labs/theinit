@@ -22,7 +22,6 @@ parse_cmdline </proc/cmdline
 
 # setup logging as early as possible
 rdlogger_start
-
 for d in ${disablehooks//,/ }; do
     [ -e "/hooks/$d" ] && chmod 644 "/hooks/$d"
 done
@@ -43,42 +42,60 @@ if [ "${break}" = "y" ] || [ "${break}" = "premount" ]; then
     launch_interactive_shell
 fi
 
+if [ -f /proc/sys/crypto/fips_enabled ] && [ $(cat /proc/sys/crypto/fips_enabled) -eq "1" ] ; then
+    modules_flags="aesni-intel:aes ghash_clmulni_intel:pclmulqdq"
+    check_modules
+    check_kernel_integrity
+fi
+
 if [ -n "$kern" ]; then
         mount "$root" /new_root
         path=$(find /new_root/boot -name "vmlinuz-$kern")
+        rm /etc/modprobe.d/gpu.conf
         if [ -z $path ]; then
             path=$(find /new_root/boot -type f -name "vmlinuz*" | sort -n | tail -1)
             kern="${path##*vmlinuz-}"
         fi
+        if [ -z "${kern%%*fips*}" ]; then
+            mv /etc/fips.conf /etc/modprobe.d/fips.conf
+            rm -rf /boot
+            mkdir /boot
+            cp -f $path /boot/
+            cp -f /new_root/boot/.* /boot/
+        fi
         mkdir -p /usr/lib/modules/$kern/kernel
         cd /new_root/usr/lib/modules/$kern
-        ext=$(head -1 ./modules.dep | tr -d ":" | cut -d '.' -f 3-)
-        if [ ! -z $ext ]; then
-            ext=".$ext"
-        fi
+        ext=$(head -1 ./modules.dep | tr -d ":\n")
+        ext="${ext##*.ko}"
         mods=$(cat modules.builtin | tr "\n" "|")
-        cat /bin/mod.sh | grep -v -E "${mods::-1}" | sed "s/\$/$ext/g" | cpio -pdu /usr/lib/modules/$kern
-        cp -f /new_root/usr/lib/modules/$kern/*builtin* /usr/lib/modules/$kern
-        cd /new_root/usr/lib/firmware
-        cat /bin/firm.sh | xargs -I % sh -c "ls ./%* 2>/dev/null" | cpio -pdu /usr/lib/firmware
+        cat /bin/mod.sh | grep -v -E "${mods::-1}" | sed "s/\$/$ext/g" | cpio --quiet -pdu /usr/lib/modules/$kern 2>/dev/null
+        cp -f /new_root/usr/lib/modules/$kern/module* /usr/lib/modules/$kern
+        cp -rf /new_root/usr/lib/modules/$kern/kernel/drivers/gpu/drm /usr/lib/modules/$kern/kernel/gpu/drm 2>/dev/null
+        # cd /new_root/usr/lib/firmware
+        # Should firmware's be added?
+        # ls /usr/lib/firmware | while read d; do cp -rf ./"${d%%.*}"* /usr/lib/firmware; done
+        # cat /bin/firm.sh | xargs -I % sh -c "ls ./%* 2>/dev/null" | cpio -pdu /usr/lib/firmware
         depmod -a $kern
     {
         cd /
-        find . -type d \( -path ./dev -o -path ./new_root -o -path ./run -o -path ./sys -o -path ./proc -o -path ./usr/lib/modules/$(uname -r) \) -prune -o -print0 | cpio --null --quiet -H newc -o 2>/dev/null
+        find . -type d \( -path ./dev -o -path ./new_root -o -path ./run -o -path ./sys -o -path ./proc -o -path ./usr/lib/modules/$(uname -r) \) -prune -o -print | cpio -H newc -o 2>/dev/null
     } > /run/theinit.img
 
-    kexec -l $path --initrd=/run/theinit.img --append=root="$root"\ quiet\ splash\ loglevel=3\ udev.log_level=3\ ro
+    if [ ! -z "${kern#*fips*}" ]; then
+        kexec -l $path --initrd=/run/theinit.img --append=root="$root"\ fips=1\ rw\ udev.log_level=3\ quiet\ loglevel=3\ splash
+    else
+        kexec -l $path --initrd=/run/theinit.img --append=root="$root"\ udev.log_level=3\ loglevel=3\ rw\ quiet\ loglevel=3\ splash
+    fi
 
     if [ "${break}" = "y" ] || [ "${break}" = "prekexec" ]; then
         echo ":: Pre-mount break requested, type 'exit' to resume operation"
         launch_interactive_shell
     fi
-    # plymouth --quit
+    plymouth --quit
     run_hookfunctions 'run_cleanuphook' 'cleanup hook' $CLEANUPHOOKS
     rdlogger_stop
-    # uniq /bin/mod.sh | xargs modprobe -rf
     umount -a
-    kexec -x -y -e
+    kexec -i -e
 fi
 
 rootdev=$(resolve_device "$root") && root=$rootdev

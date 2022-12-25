@@ -1,6 +1,7 @@
 #!/bin/bash
 
 build() {
+    /usr/local/bin/phyOS-getcrypt
     local mod
 
     add_module dm-crypt
