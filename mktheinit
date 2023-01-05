@@ -537,6 +537,9 @@ while :; do
             shift
             _optcmdline=$1
             ;;
+        --resize)
+            shift
+            _opttargetdir=$(mktemp /tmp/res.img)
         -k|--kernel)
             shift
             KERNELVERSION=$1

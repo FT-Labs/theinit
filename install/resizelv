@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+
+build() {
+    add_binary 'resize2fs'
+    add_binary 'e2fsck'
+}
+
+help() {
+  cat <<HELPEOF
+This hook helps resizing logical volume.
+HELPEOF
+}

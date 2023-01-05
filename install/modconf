@@ -3,6 +3,8 @@
 build() {
   add_full_dir /etc/modprobe.d '*.conf'
   add_full_dir /usr/lib/modprobe.d '*.conf'
+  add_file '/usr/lib/theinit/fips.conf' '/etc/fips.conf'
+  add_file '/usr/lib/theinit/fips.modules' '/etc/fips.modules'
 }
 
 help() {

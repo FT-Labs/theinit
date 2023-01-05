@@ -1,0 +1,10 @@
+#!/usr/bin/ash
+run_hook() {
+    msg ":: Resizing lv..."
+    . /tmp/resizeinfo.sh
+    e2fsck -f "$_dev"
+    resize2fs "$_dev" "${_r2size}G"
+    lvm lvreduce -L "${_lvsize}G" "$_dev"
+    resize2fs "$_dev"
+}
+# vim: set ft=sh ts=4 sw=4 et:

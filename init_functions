@@ -485,4 +485,94 @@ mount_setup() {
     fi
 }
 
+# Fips
+check_modules() {
+	# Load crypto modules. fips=1 ensures the module signature is checked.
+	echo "Loading and testing cryptographic modules"
+	mv /etc/modprobe.d/fips.conf /etc/modprobe.d/fips.conf_disabled
+	cpu_flags=$(sed -n -r -e '/^[Ff]lags\s*:\s*(.*)/{s//\1/p;q}' /proc/cpuinfo)
+	for mod in $(cat /etc/fips.modules); do
+		# tcrypt should be the last module.
+		if [ "$mod" = "tcrypt" ]; then
+			continue
+		fi
+
+		# Find the required cpu flag for the module
+		req_flag=
+		for i in $modules_flags; do
+			cur="${i%%:*}"
+			if [ "$cur" = "$mod" ]; then
+				req_flag="${i#*:}"
+				break
+			fi
+		done
+
+		# Check if the required CPU flag is available
+		if [ -n "$req_flag" ]; then
+			supported=0
+			for f in $cpu_flags; do
+				if [ "$f" = "$req_flag" ]; then
+					supported=1
+					break
+				fi
+			done
+			if [ "$supported" -eq 0 ]; then
+				echo "Skipping module \"$mod\" from FIPS checks due to missing CPU flag: $req_flag"
+				continue
+			fi
+		fi
+
+		# Load the module
+		if ! modprobe "$mod"; then
+			panic "Failed to load $mod"
+		fi
+	done
+
+	# Load tcrypt to run the crypto API tests. In FIPS mode, tcrypt will be kept
+	# loaded if all tests succeed and modprobe will exit with rc=0.
+	if ! modprobe tcrypt; then
+		panic "Crypto API tests failed"
+	fi
+	modprobe -r tcrypt
+	mv /etc/modprobe.d/fips.conf_disabled /etc/modprobe.d/fips.conf
+}
+
+get_kernel_image() {
+	for kernel in "/boot"     \
+			      "/boot/vmlinuz-$(uname -r)" \
+			      "/boot/vmlinux-$(uname -r)"; do
+		if [ -e "$kernel" ]; then
+			echo "$kernel"
+			return
+		fi
+	done
+}
+
+check_kernel_integrity() {
+	# Check the kernel image
+	kernel="$(get_kernel_image)"
+	kernel_hmac="/boot/.${kernel##*/}.hmac"
+	if [ -z "$kernel" ]; then
+		panic "Cannot find the current kernel image."
+	fi
+	if [ ! -e "$kernel" ]; then
+		panic "Kernel image is missing: $kernel"
+	fi
+	if [ ! -e "$kernel_hmac" ]; then
+		panic "HMAC file is missing: $kernel_hmac"
+	fi
+	if ! which sha512hmac 1> /dev/null 2>&1; then
+		panic "sha512hmac tool is missing"
+	fi
+	echo "Checking kernel image: $kernel"
+	expected="$(cat "$kernel_hmac" | tail -n 1 | sed 's/\s.*//')"
+	calculated="$(sha512hmac "$kernel" | tail -n 1 | sed 's/\s.*//')"
+	if [ "$expected" != "$calculated" ]; then
+		panic "Kernel integrity check failed"
+	fi
+	echo "FIPS check done"
+}
+
+
+
 # vim: set ft=sh ts=4 sw=4 et:

@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+
+_kern=$(uname -r | grep -E -o 'zen|hardened|lts')
+
+
+case "$_kern" in
+    zen)
+        _init="/boot/initramfs-linux-zen.img"
+        _kern="/boot/vmlinuz-linux-zen"
+        ;;
+    hardened)
+        _init="/boot/initramfs-linux-hardened.img"
+        _kern="/boot/vmlinuz-linux-hardened"
+        ;;
+    lts)
+        _init="/boot/initramfs-linux-lts.img"
+        _kern="/boot/vmlinuz-linux-lts"
+        ;;
+    *)
+        _kern="/boot/vmlinuz-linux"
+        _init="/boot/initramfs-linux.img"
+        ;;
+esac
+
+[ ! -f "$_kern" ] && exit 1
+[ ! -f "$_init" ] && exit 1
+_dev="$1"
+_lvsize="$2"
+_rs2fs=$(($2-1))
+
+_initdir=$(mktemp -d /tmp/res.XXXXX)
+cd "$_initdir"
+lsinitcpio -x "$_init" || exit 1
+cp $(which e2fsck) $(which resize2fs) $(which lvreduce) usr/bin
+sed -i '38c\ /usr/bin/lvreduce.sh' init
+
+cat >usr/bin/lvreduce.sh << EOF
+#!/bin/sh
+e2fsck -f $_dev
+resize2fs "${_dev}" "${_rs2fs}G"
+lvreduce -f -L "${_lvsize}G" "${_dev}"
+resize2fs "${_dev}"
+EOF
+chmod +x usr/bin/lvreduce.sh
+
+_tmpinit=$(mktemp /tmp/res.XXXXXX)
+find . | LC_ALL=C sort | cpio --quiet -R 0:0 -o -H newc > "${_tmpinit}" || exit 1
+
+kexec -l "$_kern" --initrd="${_tmpinit}" --reuse-cmdline || exit 1
+systemctl kexec

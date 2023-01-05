@@ -33,6 +33,7 @@ EOF
         [ ! -f ${ckeyfile} ] && echo "Keyfile could not be opened. Reverting to passphrase."
     fi
 
+    cryptdevice=UUID=56eb855b-acea-4114-b6fa-69bec9fc8fcb:root
     if [ -n "${cryptdevice}" ]; then
         DEPRECATED_CRYPT=0
         IFS=: read cryptdev cryptname cryptoptions <<EOF

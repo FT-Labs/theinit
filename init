@@ -51,12 +51,11 @@ fi
 if [ -n "$kern" ]; then
         mount "$root" /new_root
         path=$(find /new_root/boot -name "vmlinuz-$kern")
-        rm /etc/modprobe.d/gpu.conf
         if [ -z $path ]; then
             path=$(find /new_root/boot -type f -name "vmlinuz*" | sort -n | tail -1)
             kern="${path##*vmlinuz-}"
         fi
-        if [ -z "${kern%%*fips*}" ]; then
+        if [ -z "${kern##*fips*}" ]; then
             mv /etc/fips.conf /etc/modprobe.d/fips.conf
             rm -rf /boot
             mkdir /boot
@@ -68,20 +67,24 @@ if [ -n "$kern" ]; then
         ext=$(head -1 ./modules.dep | tr -d ":\n")
         ext="${ext##*.ko}"
         mods=$(cat modules.builtin | tr "\n" "|")
-        cat /bin/mod.sh | grep -v -E "${mods::-1}" | sed "s/\$/$ext/g" | cpio --quiet -pdu /usr/lib/modules/$kern 2>/dev/null
+        cat /bin/mod.sh | grep -v -E "${mods::-1}" | sed "s/\$/$ext/g" | cpio -pdu /usr/lib/modules/$kern
+        cp -rf ./kernel/drivers/gpu/drm /usr/lib/modules/$kern/kernel/drivers/gpu/drm
         cp -f /new_root/usr/lib/modules/$kern/module* /usr/lib/modules/$kern
-        cp -rf /new_root/usr/lib/modules/$kern/kernel/drivers/gpu/drm /usr/lib/modules/$kern/kernel/gpu/drm 2>/dev/null
-        # cd /new_root/usr/lib/firmware
-        # Should firmware's be added?
+        cd /new_root/usr/lib/firmware
         # ls /usr/lib/firmware | while read d; do cp -rf ./"${d%%.*}"* /usr/lib/firmware; done
         # cat /bin/firm.sh | xargs -I % sh -c "ls ./%* 2>/dev/null" | cpio -pdu /usr/lib/firmware
         depmod -a $kern
+        rm -rf /etc/modprobe.d
+        rm -rf /usr/lib/modprobe.d
+        cp -rf /new_root/etc/modprobe.d /etc
+        cp -rf /new_root/usr/lib/modprobe.d /usr/lib
     {
         cd /
         find . -type d \( -path ./dev -o -path ./new_root -o -path ./run -o -path ./sys -o -path ./proc -o -path ./usr/lib/modules/$(uname -r) \) -prune -o -print | cpio -H newc -o 2>/dev/null
     } > /run/theinit.img
 
-    if [ ! -z "${kern#*fips*}" ]; then
+
+    if [ -z "${kern##*fips*}" ]; then
         kexec -l $path --initrd=/run/theinit.img --append=root="$root"\ fips=1\ rw\ udev.log_level=3\ quiet\ loglevel=3\ splash
     else
         kexec -l $path --initrd=/run/theinit.img --append=root="$root"\ udev.log_level=3\ loglevel=3\ rw\ quiet\ loglevel=3\ splash
@@ -91,11 +94,12 @@ if [ -n "$kern" ]; then
         echo ":: Pre-mount break requested, type 'exit' to resume operation"
         launch_interactive_shell
     fi
-    plymouth --quit
+    # plymouth --quit
     run_hookfunctions 'run_cleanuphook' 'cleanup hook' $CLEANUPHOOKS
     rdlogger_stop
+    # uniq /bin/mod.sh | xargs modprobe -rf
     umount -a
-    kexec -i -e
+    kexec -e
 fi
 
 rootdev=$(resolve_device "$root") && root=$rootdev
