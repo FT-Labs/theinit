@@ -51,26 +51,26 @@ install: all
 
 	install -m644 theinit.conf $(DESTDIR)/etc/theinit.conf
 	install -m755 -t $(DESTDIR)/usr/lib/theinit init shutdown
-	install -m644 -t $(DESTDIR)/usr/lib/theinit init_functions functions
+	install -m644 -t $(DESTDIR)/usr/lib/theinit init_functions functions fips.conf fips.modules
 	cp -ar udev $(DESTDIR)/usr/lib/theinit/
 
 	cp -art $(DESTDIR)/usr/lib/theinit hooks install
 	install -m644 -t $(DESTDIR)/usr/share/theinit theinit.d/*
 	install -m644 tmpfiles/theinit.conf $(DESTDIR)/usr/lib/tmpfiles.d/theinit.conf
 
-	# install -m644 man/mktheinit.8 $(DESTDIR)/usr/share/man/man8/mktheinit.8
-	# install -m644 man/theinit.conf.5 $(DESTDIR)/usr/share/man/man5/theinit.conf.5
-	# install -m644 man/lsinitcpio.1 $(DESTDIR)/usr/share/man/man1/lsinitcpio.1
+	install -m644 man/mktheinit.8 $(DESTDIR)/usr/share/man/man8/mktheinit.8
+	install -m644 man/theinit.conf.5 $(DESTDIR)/usr/share/man/man5/theinit.conf.5
+	install -m644 man/lsinitcpio.1 $(DESTDIR)/usr/share/man/man1/lsinitcpio.1
 	install -m644 shell/bash-completion $(DESTDIR)/usr/share/bash-completion/completions/mktheinit
-	# ln -s mktheinit $(DESTDIR)/usr/share/bash-completion/completions/lsinitcpio
+	ln -sf mktheinit $(DESTDIR)/usr/share/bash-completion/completions/lsinitcpio
 	install -m644 shell/zsh-completion $(DESTDIR)/usr/share/zsh/site-functions/_mktheinit
 
-# doc: $(MANPAGES)
-# man/%: man/%.txt Makefile
-# 	a2x -d manpage \
-# 		-f manpage \
-# 		-a manversion="mktheinit $(VERSION)" \
-# 		-a manmanual="mktheinit manual" $<
+doc: $(MANPAGES)
+man/%: man/%.txt Makefile
+	a2x -d manpage \
+		-f manpage \
+		-a manversion="mktheinit $(VERSION)" \
+		-a manmanual="mktheinit manual" $<
 
 check:
 	@r=0; for t in test/test_*; do $$t || { echo $$t fail; r=1; }; done; exit $$r
