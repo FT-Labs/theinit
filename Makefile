@@ -17,7 +17,6 @@ DIRS = \
 	/usr/share/man/man5 \
 	/usr/share/man/man1 \
 	/usr/share/theinit \
-	/usr/lib/tmpfiles.d
 
 BASH_SCRIPTS = \
 	mktheinit \
@@ -56,7 +55,6 @@ install: all
 
 	cp -art $(DESTDIR)/usr/lib/theinit hooks install
 	install -m644 -t $(DESTDIR)/usr/share/theinit theinit.d/*
-	install -m644 tmpfiles/theinit.conf $(DESTDIR)/usr/lib/tmpfiles.d/theinit.conf
 
 	install -m644 man/mktheinit.8 $(DESTDIR)/usr/share/man/man8/mktheinit.8
 	install -m644 man/theinit.conf.5 $(DESTDIR)/usr/share/man/man5/theinit.conf.5
